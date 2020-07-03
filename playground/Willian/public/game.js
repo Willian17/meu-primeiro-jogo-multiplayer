@@ -1,15 +1,18 @@
+import  {mod} from './utils.js'
+
 export default function createGame() {
     const state = {
         players: {},
         fruits: {},
         screen: {
-            width: 10,
-            height: 10
+            width: 20,
+            height: 20
         }
     }
 
     const observers = []
 
+    
     function start(){
         const frequency = 2000
 
@@ -33,18 +36,25 @@ export default function createGame() {
     function addPlayer(command) {
         // const { playerId, playerX, playerY } = command
         const playerId = command.playerId
+        const playerName = command.playerName
         const playerX = 'playerX' in command ? command.playerX : Math.floor(Math.random() * state.screen.width)
         const playerY = 'playerY' in command ? command.playerY : Math.floor(Math.random() * state.screen.height)
+        const score = 0
+
         state.players[playerId] = {
+            playerName: playerName,
             x: playerX,
-            y: playerY
+            y: playerY,
+            score
         }
 
         notifyAll({
             type: 'add-player',
             playerId,
+            playerName: playerName,
             playerX,
-            playerY
+            playerY,
+            score
         })
     }
     function removePlayer(command) {
@@ -76,10 +86,14 @@ export default function createGame() {
         })
     }
     function removeFruit(command) {
-        const { fruitId } = command
+        const { fruitId , playerId} = command
 
         delete state.fruits[fruitId]
-
+        notifyAll({
+            type: "play-audio",
+            audio: "drinkPot",
+            playersId: [playerId]
+        })
         notifyAll({
             type: "remove-fruit",
             fruitId
@@ -91,24 +105,16 @@ export default function createGame() {
 
         const acceptedMoves = {
             ArrowUp(player) {
-                if (player.y - 1 >= 0) {
-                    player.y = player.y - 1
-                }
+                    player.y = mod(state.screen.height , player.y -1)
             },
             ArrowDown(player) {
-                if (player.y + 1 < state.screen.height) {
-                    player.y = player.y + 1
-                }
+                player.y = mod(state.screen.height , player.y + 1)
             },
             ArrowRight(player) {
-                if (player.x + 1 < state.screen.width) {
-                    player.x = player.x + 1
-                }
+                player.x = mod(state.screen.width , player.x + 1)
             },
             ArrowLeft(player) {
-                if (player.x - 1 >= 0) {
-                    player.x = player.x - 1
-                }
+                player.x = mod(state.screen.width , player.x - 1)
             }
         }
 
@@ -128,7 +134,8 @@ export default function createGame() {
                 const fruit = state.fruits[fruitId]
 
                 if (player.x === fruit.x && player.y === fruit.y) {
-                    removeFruit({ fruitId })
+                    removeFruit({ fruitId , playerId })
+                    player.score += 1
                 }
             }
         }

@@ -4,36 +4,126 @@
 	<meta charset="UTF-8">
 	<title>Meu primeiro jogo multiplayer</title>
 	<style>
+		body {
+			margin: 40px 0 0 0;
+			padding: 0;
+			background-color: #EEE;
+			text-align: center;
+		}
+
 		#screen {
-			border: 10px solid #CCC;
 			image-rendering: pixelated;
 			image-rendering: crisp-edges;
 			image-rendering: -moz-crisp-edges;
-			width: 400px;
-			height: 400px;
+			-webkit-box-shadow: 0px 4px 17px 0px rgba(0, 0, 0, 0.19);
+			-moz-box-shadow: 0px 4px 17px 0px rgba(0, 0, 0, 0.19);
+			box-shadow: 0px 4px 17px 0px rgba(0, 0, 0, 0.19);
+			margin-bottom: 20px;
+			margin-left: 20px;
+			margin-right: 20px;
+			display: inline-block;
+			vertical-align: top;
+			height: 500px;
+			width: 500px;
+		}
+
+		#score-table {
+			font-size: 13px;
+			vertical-align: top;
+			display: inline-block;
+			font-family: Arial, Helvetica, sans-serif
+		}
+
+		#score-table tr.header td {
+			border-bottom: 1px solid #CCC;
+			padding-bottom: 8px;
+			color: #e6b800;
+		}
+
+		#score-table tr.footer td {
+			border-top: 1px solid #CCC;
+			font-size: 11px;
+		}
+
+		#score-table td {
+			padding-top: 5px;
+			padding-bottom: 5px;
+		}
+
+		#score-table .socket-id {
+			font-weight: normal;
+			color: #222;
+			width: 150px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			display: inline-block
+		}
+
+		#score-table .score-value {
+			font-weight: bold;
+			color: #000;
+			text-align: right;
+		}
+
+		#score-table .current-player .socket-id,
+		#score-table .current-player .score-value {
+			color: #bdaa27;
 		}
 	</style>
-    <script src="/socket.io/socket.io.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
-	<canvas id="screen" width="10" height="10"></canvas>
+	<canvas id="screen" width="20" height="20"></canvas>
+	<table id="score-table"></table>
+
 	<script type="module">
+		function getNickName(defaultName = 'Anônimo'){
+        const readNickName = sessionStorage.getItem('NickName') || prompt('Digite seu nick: ')
+        sessionStorage.setItem('NickName' , readNickName || defaultName)
+        return sessionStorage.getItem('NickName')
+    }
 		import createKeyboardListener from './keyboardListener.js'
         import createGame from './game.js'
         import renderScreen from './render-screen.js'
 
+        const playerName = getNickName()
         const game = createGame()
         const keyboardListener = createKeyboardListener(document)
 
-        const socket = io()
+        const socket = io({
+            query: {
+                userName: playerName
+            }
+        })
+
+         function sound(src) {        
+                this.sound = document.createElement("audio");
+                this.sound.src = src;
+                this.sound.setAttribute("preload", "auto");
+                this.sound.setAttribute("controls", "none");
+                this.sound.style.display = "none";
+                document.body.appendChild(this.sound);
+                this.play = function(){
+                    this.sound.play();
+                }
+                this.stop = function(){
+                    this.sound.pause();
+                }    
+            }
+
+            const audios = {
+                drinkPot: new sound("./sounds/collect.mp3"), 
+            }
 
         socket.on('connect' , () => {
             const playerId = socket.id
             console.log('Player connected on Client with id: ' + playerId)
 
-		    const screen = document.getElementById('screen')
-            renderScreen(screen, game, requestAnimationFrame , playerId)
+            const screen = document.getElementById('screen')
+            const scoreTable = document.getElementById('score-table')
+            renderScreen(screen, scoreTable , game, requestAnimationFrame , playerId)
         })
 
         socket.on('setup' , (state)=> {
@@ -48,7 +138,7 @@
         })
 
         socket.on('add-player' , (command)=> {
-            console.log(`Receiving ${command.type} -> ${command.playerId}`)
+            console.log(`Receiving ${command.type} -> ${command.playerId} with name ${command.playerName}`)
             game.addPlayer(command)
         })
         socket.on('remove-player' , (command)=> {
@@ -75,11 +165,14 @@
             console.log(`Receiving ${command.type} -> ${command.fruitId}`)
             game.removeFruit(command)
         })
-
-        
-
-        
-     
+         
+          socket.on('play-audio', (command) => {
+                const playerId = socket.id
+                if(command.audio && audios[command.audio]){
+                    if(command.playersId && command.playersId.indexOf(playerId)>-1)
+                        audios[command.audio].sound.cloneNode(true).play()                                        
+                }                    
+            })
 
 	</script>
 </body>
